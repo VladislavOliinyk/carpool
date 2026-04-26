@@ -1,10 +1,10 @@
 "use client";
 
-export const dynamic = "force-dynamic";
 import { useEffect, useState } from "react";
 import { supabase } from "../../lib/supabase";
 import { calculateStats } from "./utils/stats";
 import { getNextDriver } from "./utils/recommend";
+import Toast from "../components/Toast";
 
 type User = {
   id: string;
@@ -20,15 +20,38 @@ type Trip = {
 
 export default function CreateTrip() {
   const [users, setUsers] = useState<User[]>([]);
-  const [showConfirm, setShowConfirm] = useState(false);
   const [driver, setDriver] = useState("");
   const [participants, setParticipants] = useState<string[]>([]);
   const [feeder, setFeeder] = useState("");
   const [trips, setTrips] = useState<Trip[]>([]);
+  const [toast, setToast] = useState<string | null>(null);
 
   useEffect(() => {
     fetchUsers();
     fetchTrips();
+
+    if (!supabase) return;
+
+    const channel = supabase
+      .channel("realtime-trips")
+      .on(
+        "postgres_changes",
+        {
+          event: "*",
+          schema: "public",
+          table: "trips",
+        },
+        () => {
+          fetchTrips();
+        }
+      )
+      .subscribe();
+
+    return () => {
+      if (supabase) {
+        supabase.removeChannel(channel);
+      }
+    };
   }, []);
 
   async function fetchUsers() {
@@ -47,44 +70,46 @@ export default function CreateTrip() {
 
   function toggleUser(id: string) {
     if (participants.includes(id)) {
-      setParticipants(participants.filter(p => p !== id));
+      setParticipants(participants.filter((p) => p !== id));
     } else {
       setParticipants([...participants, id]);
     }
   }
 
   function getUserName(id: string) {
-    return users.find(u => u.id === id)?.name || "—";
+    return users.find((u) => u.id === id)?.name || "—";
   }
 
   const isIgorDriver =
-    users.find(u => u.id === driver)?.name === "Ігор";
+    users.find((u) => u.id === driver)?.name === "Ігор";
 
-  // 🚀 СТВОРЕННЯ ПОЇЗДКИ
+  // 🚗 CREATE TRIP
   async function createTrip() {
-    if (!supabase) return;
-
     if (!driver) return alert("Оберіть водія");
 
     if (isIgorDriver && !feeder) {
       return alert("Хто везе до Ігоря?");
     }
 
+    if (!supabase) return;
+
     await supabase.from("trips").insert([
       {
         driver_id: driver,
-        feeder_id: isIgorDriver ? feeder : null
-      }
+        feeder_id: isIgorDriver ? feeder : null,
+      },
     ]);
 
     setDriver("");
     setParticipants([]);
     setFeeder("");
 
+    setToast("🚗 Поїздка додана");
+
     fetchTrips();
   }
 
-  // 🔥 UNDO
+  // ↩️ UNDO
   async function undoLastTrip() {
     if (!supabase) return;
 
@@ -99,9 +124,7 @@ export default function CreateTrip() {
       return;
     }
 
-    const lastTrip = data[0];
-
-    await supabase.from("trips").delete().eq("id", lastTrip.id);
+    await supabase.from("trips").delete().eq("id", data[0].id);
 
     fetchTrips();
   }
@@ -111,7 +134,6 @@ export default function CreateTrip() {
 
   return (
     <div className="container">
-
       <h1 style={{ textAlign: "center" }}>🚗 Carpool</h1>
 
       {/* ВОДІЙ */}
@@ -124,7 +146,7 @@ export default function CreateTrip() {
           onChange={(e) => setDriver(e.target.value)}
         >
           <option value="">Оберіть</option>
-          {users.map(u => (
+          {users.map((u) => (
             <option key={u.id} value={u.id}>
               {u.name}
             </option>
@@ -136,7 +158,7 @@ export default function CreateTrip() {
       <div className="card">
         <h3>Учасники</h3>
 
-        {users.map(u => (
+        {users.map((u) => (
           <label key={u.id} style={{ display: "block", marginBottom: 6 }}>
             <input
               type="checkbox"
@@ -154,8 +176,8 @@ export default function CreateTrip() {
           <h3>Хто везе до Ігоря</h3>
 
           {users
-            .filter(u => u.id !== driver)
-            .map(u => (
+            .filter((u) => u.id !== driver)
+            .map((u) => (
               <label key={u.id} style={{ display: "block" }}>
                 <input
                   type="radio"
@@ -171,7 +193,7 @@ export default function CreateTrip() {
 
       {/* КНОПКИ */}
       <button
-        onClick={() => setShowConfirm(true)}
+        onClick={createTrip}
         className="button button-green"
       >
         🚀 Зберегти
@@ -198,7 +220,13 @@ export default function CreateTrip() {
         <h3>Статистика</h3>
 
         {Object.entries(stats).map(([userId, s]) => (
-          <div key={userId} style={{ display: "flex", justifyContent: "space-between" }}>
+          <div
+            key={userId}
+            style={{
+              display: "flex",
+              justifyContent: "space-between",
+            }}
+          >
             <span>{getUserName(userId)}</span>
             <span>🚗 {s.kyiv} | 🚙 {s.feeder}</span>
           </div>
@@ -209,14 +237,23 @@ export default function CreateTrip() {
       <div className="card">
         <h3>Останні</h3>
 
-        {trips.slice().reverse().slice(0, 5).map(t => (
-          <div key={t.id}>
-            🚗 {getUserName(t.driver_id)}
-            {t.feeder_id && ` (підвіз: ${getUserName(t.feeder_id)})`}
-          </div>
-        ))}
+        {trips
+          .slice()
+          .reverse()
+          .slice(0, 5)
+          .map((t) => (
+            <div key={t.id}>
+              🚗 {getUserName(t.driver_id)}
+              {t.feeder_id &&
+                ` (підвіз: ${getUserName(t.feeder_id)})`}
+            </div>
+          ))}
       </div>
 
+      {/* 🔔 TOAST */}
+      {toast && (
+        <Toast message={toast} onClose={() => setToast(null)} />
+      )}
     </div>
   );
 }
