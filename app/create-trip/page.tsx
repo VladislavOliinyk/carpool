@@ -31,11 +31,15 @@ export default function CreateTrip() {
   }, []);
 
   async function fetchUsers() {
+    if (!supabase) return;
+
     const { data } = await supabase.from("users").select("*");
     setUsers(data || []);
   }
 
   async function fetchTrips() {
+    if (!supabase) return;
+
     const { data } = await supabase.from("trips").select("*");
     setTrips(data || []);
   }
@@ -57,6 +61,8 @@ export default function CreateTrip() {
 
   // 🚀 СТВОРЕННЯ ПОЇЗДКИ
   async function createTrip() {
+    if (!supabase) return;
+
     if (!driver) return alert("Оберіть водія");
 
     if (isIgorDriver && !feeder) {
@@ -79,6 +85,8 @@ export default function CreateTrip() {
 
   // 🔥 UNDO
   async function undoLastTrip() {
+    if (!supabase) return;
+
     const { data } = await supabase
       .from("trips")
       .select("*")
@@ -100,114 +108,114 @@ export default function CreateTrip() {
   const stats = calculateStats(trips);
   const nextDriverId = getNextDriver(stats);
 
-return (
-  <div className="container">
+  return (
+    <div className="container">
 
-    <h1 style={{ textAlign: "center" }}>🚗 Carpool</h1>
+      <h1 style={{ textAlign: "center" }}>🚗 Carpool</h1>
 
-    {/* ВОДІЙ */}
-    <div className="card">
-      <h3>Водій</h3>
-
-      <select
-        className="select"
-        value={driver}
-        onChange={(e) => setDriver(e.target.value)}
-      >
-        <option value="">Оберіть</option>
-        {users.map(u => (
-          <option key={u.id} value={u.id}>
-            {u.name}
-          </option>
-        ))}
-      </select>
-    </div>
-
-    {/* УЧАСНИКИ */}
-    <div className="card">
-      <h3>Учасники</h3>
-
-      {users.map(u => (
-        <label key={u.id} style={{ display: "block", marginBottom: 6 }}>
-          <input
-            type="checkbox"
-            checked={participants.includes(u.id)}
-            onChange={() => toggleUser(u.id)}
-          />
-          <span style={{ marginLeft: 8 }}>{u.name}</span>
-        </label>
-      ))}
-    </div>
-
-    {/* FEEDER */}
-    {isIgorDriver && (
+      {/* ВОДІЙ */}
       <div className="card">
-        <h3>Хто везе до Ігоря</h3>
+        <h3>Водій</h3>
 
-        {users
-          .filter(u => u.id !== driver)
-          .map(u => (
-            <label key={u.id} style={{ display: "block" }}>
-              <input
-                type="radio"
-                name="feeder"
-                value={u.id}
-                onChange={(e) => setFeeder(e.target.value)}
-              />
-              <span style={{ marginLeft: 8 }}>{u.name}</span>
-            </label>
+        <select
+          className="select"
+          value={driver}
+          onChange={(e) => setDriver(e.target.value)}
+        >
+          <option value="">Оберіть</option>
+          {users.map(u => (
+            <option key={u.id} value={u.id}>
+              {u.name}
+            </option>
           ))}
+        </select>
       </div>
-    )}
 
-    {/* КНОПКИ */}
-    <button
-      onClick={() => setShowConfirm(true)}
-      className="button button-green"
-    >
-      🚀 Зберегти
-    </button>
+      {/* УЧАСНИКИ */}
+      <div className="card">
+        <h3>Учасники</h3>
 
-    <button
-      onClick={undoLastTrip}
-      className="button button-gray"
-      style={{ marginTop: 10 }}
-    >
-      ↩️ Відмінити
-    </button>
-
-    {/* РЕКОМЕНДАЦІЯ */}
-    <div className="card highlight">
-      <h3>Рекомендований водій</h3>
-      <div style={{ fontSize: 22, fontWeight: "bold" }}>
-        {nextDriverId ? getUserName(nextDriverId) : "—"}
+        {users.map(u => (
+          <label key={u.id} style={{ display: "block", marginBottom: 6 }}>
+            <input
+              type="checkbox"
+              checked={participants.includes(u.id)}
+              onChange={() => toggleUser(u.id)}
+            />
+            <span style={{ marginLeft: 8 }}>{u.name}</span>
+          </label>
+        ))}
       </div>
-    </div>
 
-    {/* СТАТИСТИКА */}
-    <div className="card">
-      <h3>Статистика</h3>
+      {/* FEEDER */}
+      {isIgorDriver && (
+        <div className="card">
+          <h3>Хто везе до Ігоря</h3>
 
-      {Object.entries(stats).map(([userId, s]) => (
-        <div key={userId} style={{ display: "flex", justifyContent: "space-between" }}>
-          <span>{getUserName(userId)}</span>
-          <span>🚗 {s.kyiv} | 🚙 {s.feeder}</span>
+          {users
+            .filter(u => u.id !== driver)
+            .map(u => (
+              <label key={u.id} style={{ display: "block" }}>
+                <input
+                  type="radio"
+                  name="feeder"
+                  value={u.id}
+                  onChange={(e) => setFeeder(e.target.value)}
+                />
+                <span style={{ marginLeft: 8 }}>{u.name}</span>
+              </label>
+            ))}
         </div>
-      ))}
-    </div>
+      )}
 
-    {/* ІСТОРІЯ */}
-    <div className="card">
-      <h3>Останні</h3>
+      {/* КНОПКИ */}
+      <button
+        onClick={() => setShowConfirm(true)}
+        className="button button-green"
+      >
+        🚀 Зберегти
+      </button>
 
-      {trips.slice().reverse().slice(0, 5).map(t => (
-        <div key={t.id}>
-          🚗 {getUserName(t.driver_id)}
-          {t.feeder_id && ` (підвіз: ${getUserName(t.feeder_id)})`}
+      <button
+        onClick={undoLastTrip}
+        className="button button-gray"
+        style={{ marginTop: 10 }}
+      >
+        ↩️ Відмінити
+      </button>
+
+      {/* РЕКОМЕНДАЦІЯ */}
+      <div className="card highlight">
+        <h3>Рекомендований водій</h3>
+        <div style={{ fontSize: 22, fontWeight: "bold" }}>
+          {nextDriverId ? getUserName(nextDriverId) : "—"}
         </div>
-      ))}
-    </div>
+      </div>
 
-  </div>
-);
+      {/* СТАТИСТИКА */}
+      <div className="card">
+        <h3>Статистика</h3>
+
+        {Object.entries(stats).map(([userId, s]) => (
+          <div key={userId} style={{ display: "flex", justifyContent: "space-between" }}>
+            <span>{getUserName(userId)}</span>
+            <span>🚗 {s.kyiv} | 🚙 {s.feeder}</span>
+          </div>
+        ))}
+      </div>
+
+      {/* ІСТОРІЯ */}
+      <div className="card">
+        <h3>Останні</h3>
+
+        {trips.slice().reverse().slice(0, 5).map(t => (
+          <div key={t.id}>
+            🚗 {getUserName(t.driver_id)}
+            {t.feeder_id && ` (підвіз: ${getUserName(t.feeder_id)})`}
+          </div>
+        ))}
+      </div>
+
+    </div>
+  );
 }
