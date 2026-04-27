@@ -31,17 +31,16 @@ export default function RootLayout({
         <meta name="theme-color" content="#22c55e" />
         <link rel="apple-touch-icon" href="/icon-192.png" />
       </head>
-      <body>{children}</body>
+
+      <body>
+        {children}
+
+        {/* 🔻 Нижнє меню */}
+        <BottomNav />
+
+        {/* 🟢 Онлайн юзери */}
+        <Presence />
+      </body>
     </html>
   );
-
-  <body>
-  {children}
-  <BottomNav />
-
-  {children}
-  <Presence />
-</body>
-
-
 }

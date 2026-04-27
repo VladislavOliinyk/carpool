@@ -22,10 +22,9 @@ type User = {
 };
 
 export default function StatsPage() {
-    
   const [trips, setTrips] = useState<Trip[]>([]);
   const [users, setUsers] = useState<User[]>([]);
-  const [currentUser, setCurrentUser] = useState<string | null>(null); // ✅ ВОНО
+  const [currentUser, setCurrentUser] = useState<string | null>(null);
 
   useEffect(() => {
     fetchTrips();
@@ -72,6 +71,15 @@ export default function StatsPage() {
 
   function getUserName(id: string) {
     return users.find(u => u.id === id)?.name || "—";
+  }
+
+  // 📅 ФОРМАТ ДАТИ
+  function formatDate(date: string) {
+    const d = new Date(date);
+    return d.toLocaleDateString("uk-UA", {
+      day: "2-digit",
+      month: "2-digit",
+    });
   }
 
   const stats = calculateStats(trips);
@@ -137,6 +145,39 @@ export default function StatsPage() {
           </div>
         </div>
       ))}
+
+      {/* 📅 ІСТОРІЯ ПОЇЗДОК */}
+      <div style={{ marginTop: 30 }}>
+        <h3>Останні поїздки</h3>
+
+        {trips
+          .slice()
+          .reverse()
+          .slice(0, 5)
+          .map((t) => (
+            <div
+              key={t.id}
+              style={{
+                marginBottom: 10,
+                padding: 10,
+                background: "#f9fafb",
+                borderRadius: 10,
+              }}
+            >
+              <div>
+                🚗 {getUserName(t.driver_id)}
+                {t.feeder_id &&
+                  ` (підвіз: ${getUserName(t.feeder_id)})`}
+              </div>
+
+              {/* 📅 ДАТА */}
+              <div style={{ opacity: 0.6, fontSize: 12 }}>
+                {formatDate(t.created_at)}
+              </div>
+            </div>
+          ))}
+      </div>
+
     </div>
   );
 }
