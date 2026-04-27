@@ -246,13 +246,19 @@ export default function CreateTrip() {
     paddingTop: 10
   }}
 >
-  <button className="button button-green">
-    🚀 Зберегти
-  </button>
+<button
+  onClick={createTrip}
+  className="button button-green"
+>
+  🚀 Зберегти
+</button>
 
-  <button className="button button-gray">
-    ↩️ Відмінити
-  </button>
+<button
+  onClick={undoLastTrip}
+  className="button button-gray"
+>
+  ↩️ Відмінити
+</button>
 </div>
 
       {/* РЕКОМЕНДАЦІЯ */}
