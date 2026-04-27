@@ -170,7 +170,7 @@ export default function CreateTrip() {
   );
 
   return (
-    <div className="container">
+    <div className="container" style={{ paddingBottom: 100 }}>
 
       {/* 👤 ЛОГІН */}
       <UserGate users={users} onSelect={setCurrentUser} />

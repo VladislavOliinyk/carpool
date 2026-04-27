@@ -12,7 +12,7 @@ export default function Home() {
       flexDirection: "column",
       justifyContent: "space-between",
       alignItems: "center",
-      padding: "40px 20px, paddingBottom: 120",
+      padding: "40px 20px, paddingBottom: 100",
       fontFamily: "system-ui",
       background: "linear-gradient(180deg, #f9fafb 0%, #eef2f7 100%)",
       animation: "fadeIn 0.6s ease"
