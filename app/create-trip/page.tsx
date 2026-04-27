@@ -29,10 +29,7 @@ export default function CreateTrip() {
   const [trips, setTrips] = useState<Trip[]>([]);
   const [toast, setToast] = useState<string | null>(null);
 
-  // 👤 CURRENT USER
   const [currentUser, setCurrentUser] = useState<string | null>(null);
-
-  // 🧠 AVAILABILITY MAP
   const [availabilityMap, setAvailabilityMap] = useState<{ [key: string]: boolean }>({});
 
   useEffect(() => {
@@ -76,7 +73,6 @@ export default function CreateTrip() {
     setTrips(data || []);
   }
 
-  // 🟢 AVAILABILITY
   async function fetchAvailability() {
     if (!supabase) return;
 
@@ -110,10 +106,18 @@ export default function CreateTrip() {
     return users.find((u) => u.id === id)?.name || "—";
   }
 
+  // 📅 ДАТА (як ти хотів — тільки день/місяць)
+  function formatDate(date: string) {
+    const d = new Date(date);
+    return d.toLocaleDateString("uk-UA", {
+      day: "2-digit",
+      month: "2-digit",
+    });
+  }
+
   const isIgorDriver =
     users.find((u) => u.id === driver)?.name === "Ігор";
 
-  // 🚗 CREATE TRIP
   async function createTrip() {
     if (!driver) return alert("Оберіть водія");
 
@@ -135,11 +139,9 @@ export default function CreateTrip() {
     setFeeder("");
 
     setToast("🚗 Поїздка додана");
-
     fetchTrips();
   }
 
-  // ↩️ UNDO
   async function undoLastTrip() {
     if (!supabase) return;
 
@@ -155,13 +157,11 @@ export default function CreateTrip() {
     }
 
     await supabase.from("trips").delete().eq("id", data[0].id);
-
     fetchTrips();
   }
 
   const stats = calculateStats(trips);
 
-  // 🧠 SMART RECOMMENDATION
   const nextDriverId = getNextDriverSmart(
     stats,
     availabilityMap,
@@ -172,10 +172,8 @@ export default function CreateTrip() {
   return (
     <div className="container" style={{ paddingBottom: 100 }}>
 
-      {/* 👤 ЛОГІН */}
       <UserGate users={users} onSelect={setCurrentUser} />
 
-      {/* 🔘 AVAILABILITY */}
       {currentUser && (
         <AvailabilityToggle userId={currentUser} />
       )}
@@ -238,28 +236,15 @@ export default function CreateTrip() {
       )}
 
       {/* КНОПКИ */}
-<div
-  style={{
-    position: "sticky",
-    bottom: 80,
-    background: "white",
-    paddingTop: 10
-  }}
->
-<button
-  onClick={createTrip}
-  className="button button-green"
->
-  🚀 Зберегти
-</button>
+      <div style={{ position: "sticky", bottom: 80, background: "white", paddingTop: 10 }}>
+        <button onClick={createTrip} className="button button-green">
+          🚀 Зберегти
+        </button>
 
-<button
-  onClick={undoLastTrip}
-  className="button button-gray"
->
-  ↩️ Відмінити
-</button>
-</div>
+        <button onClick={undoLastTrip} className="button button-gray">
+          ↩️ Відмінити
+        </button>
+      </div>
 
       {/* РЕКОМЕНДАЦІЯ */}
       <div className="card highlight">
@@ -274,13 +259,7 @@ export default function CreateTrip() {
         <h3>Статистика</h3>
 
         {Object.entries(stats).map(([userId, s]) => (
-          <div
-            key={userId}
-            style={{
-              display: "flex",
-              justifyContent: "space-between",
-            }}
-          >
+          <div key={userId} style={{ display: "flex", justifyContent: "space-between" }}>
             <span>{getUserName(userId)}</span>
             <span>🚗 {s.kyiv} | 🚙 {s.feeder}</span>
           </div>
@@ -298,13 +277,13 @@ export default function CreateTrip() {
           .map((t) => (
             <div key={t.id}>
               🚗 {getUserName(t.driver_id)}
-              {t.feeder_id &&
-                ` (підвіз: ${getUserName(t.feeder_id)})`}
+              {t.feeder_id && ` (${getUserName(t.feeder_id)})`}
+              {" • "}
+              {formatDate(t.created_at)}
             </div>
           ))}
       </div>
 
-      {/* 🔔 TOAST */}
       {toast && (
         <Toast message={toast} onClose={() => setToast(null)} />
       )}
