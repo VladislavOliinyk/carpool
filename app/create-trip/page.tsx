@@ -238,17 +238,22 @@ export default function CreateTrip() {
       )}
 
       {/* КНОПКИ */}
-      <button onClick={createTrip} className="button button-green">
-        🚀 Зберегти
-      </button>
+<div
+  style={{
+    position: "sticky",
+    bottom: 80,
+    background: "white",
+    paddingTop: 10
+  }}
+>
+  <button className="button button-green">
+    🚀 Зберегти
+  </button>
 
-      <button
-        onClick={undoLastTrip}
-        className="button button-gray"
-        style={{ marginTop: 10 }}
-      >
-        ↩️ Відмінити
-      </button>
+  <button className="button button-gray">
+    ↩️ Відмінити
+  </button>
+</div>
 
       {/* РЕКОМЕНДАЦІЯ */}
       <div className="card highlight">
