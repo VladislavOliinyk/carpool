@@ -3,8 +3,11 @@
 import { useEffect, useState } from "react";
 import { supabase } from "../../lib/supabase";
 import { calculateStats } from "./utils/stats";
-import { getNextDriver } from "./utils/recommend";
+import { getNextDriverSmart } from "./utils/recommend";
+
 import Toast from "../components/Toast";
+import UserGate from "../components/UserGate";
+import AvailabilityToggle from "../components/AvailabilityToggle";
 
 type User = {
   id: string;
@@ -26,9 +29,16 @@ export default function CreateTrip() {
   const [trips, setTrips] = useState<Trip[]>([]);
   const [toast, setToast] = useState<string | null>(null);
 
+  // 👤 CURRENT USER
+  const [currentUser, setCurrentUser] = useState<string | null>(null);
+
+  // 🧠 AVAILABILITY MAP
+  const [availabilityMap, setAvailabilityMap] = useState<{ [key: string]: boolean }>({});
+
   useEffect(() => {
     fetchUsers();
     fetchTrips();
+    fetchAvailability();
 
     if (!supabase) return;
 
@@ -56,16 +66,36 @@ export default function CreateTrip() {
 
   async function fetchUsers() {
     if (!supabase) return;
-
     const { data } = await supabase.from("users").select("*");
     setUsers(data || []);
   }
 
   async function fetchTrips() {
     if (!supabase) return;
-
     const { data } = await supabase.from("trips").select("*");
     setTrips(data || []);
+  }
+
+  // 🟢 AVAILABILITY
+  async function fetchAvailability() {
+    if (!supabase) return;
+
+    const tomorrow = new Date();
+    tomorrow.setDate(tomorrow.getDate() + 1);
+    const dateStr = tomorrow.toISOString().slice(0, 10);
+
+    const { data } = await supabase
+      .from("availability")
+      .select("*")
+      .eq("date", dateStr);
+
+    const map: { [key: string]: boolean } = {};
+
+    data?.forEach((row: any) => {
+      map[row.user_id] = row.is_active;
+    });
+
+    setAvailabilityMap(map);
   }
 
   function toggleUser(id: string) {
@@ -130,10 +160,26 @@ export default function CreateTrip() {
   }
 
   const stats = calculateStats(trips);
-  const nextDriverId = getNextDriver(stats);
+
+  // 🧠 SMART RECOMMENDATION
+  const nextDriverId = getNextDriverSmart(
+    stats,
+    availabilityMap,
+    currentUser,
+    trips
+  );
 
   return (
     <div className="container">
+
+      {/* 👤 ЛОГІН */}
+      <UserGate users={users} onSelect={setCurrentUser} />
+
+      {/* 🔘 AVAILABILITY */}
+      {currentUser && (
+        <AvailabilityToggle userId={currentUser} />
+      )}
+
       <h1 style={{ textAlign: "center" }}>🚗 Carpool</h1>
 
       {/* ВОДІЙ */}
@@ -192,10 +238,7 @@ export default function CreateTrip() {
       )}
 
       {/* КНОПКИ */}
-      <button
-        onClick={createTrip}
-        className="button button-green"
-      >
+      <button onClick={createTrip} className="button button-green">
         🚀 Зберегти
       </button>
 

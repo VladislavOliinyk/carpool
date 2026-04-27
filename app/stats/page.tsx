@@ -6,6 +6,9 @@ import { useEffect, useState } from "react";
 import { supabase } from "../../lib/supabase";
 import { calculateStats } from "../create-trip/utils/stats";
 
+import UserGate from "../components/UserGate";
+import AvailabilityToggle from "../components/AvailabilityToggle";
+
 type Trip = {
   id: string;
   driver_id: string;
@@ -19,37 +22,39 @@ type User = {
 };
 
 export default function StatsPage() {
+    
   const [trips, setTrips] = useState<Trip[]>([]);
   const [users, setUsers] = useState<User[]>([]);
+  const [currentUser, setCurrentUser] = useState<string | null>(null); // ✅ ВОНО
 
-useEffect(() => {
-  fetchTrips();
-  fetchUsers();
+  useEffect(() => {
+    fetchTrips();
+    fetchUsers();
 
-  if (!supabase) return;
+    if (!supabase) return;
 
-  const channel = supabase
-    .channel("realtime-stats")
-    .on(
-      "postgres_changes",
-      {
-        event: "*",
-        schema: "public",
-        table: "trips",
-      },
-      () => {
-        console.log("⚡ stats update");
-        fetchTrips();
+    const channel = supabase
+      .channel("realtime-stats")
+      .on(
+        "postgres_changes",
+        {
+          event: "*",
+          schema: "public",
+          table: "trips",
+        },
+        () => {
+          console.log("⚡ stats update");
+          fetchTrips();
+        }
+      )
+      .subscribe();
+
+    return () => {
+      if (supabase) {
+        supabase.removeChannel(channel);
       }
-    )
-    .subscribe();
-
-  return () => {
-    if (supabase) {
-      supabase.removeChannel(channel);
-    }
-  };
-}, []);
+    };
+  }, []);
 
   async function fetchTrips() {
     if (!supabase) return;
@@ -71,7 +76,6 @@ useEffect(() => {
 
   const stats = calculateStats(trips);
 
-  // 🏆 ТОП ЮЗЕР
   const topUser = Object.entries(stats)
     .sort(
       (a, b) =>
@@ -82,7 +86,15 @@ useEffect(() => {
   return (
     <div style={{ padding: 16, paddingBottom: 90 }}>
 
-      <h2 style={{ marginBottom: 20 }}>📊 Статистика</h2>
+      {/* 👤 ВИБІР ЮЗЕРА */}
+      <UserGate users={users} onSelect={setCurrentUser} />
+
+      {/* 🔘 AVAILABILITY */}
+      {currentUser && (
+        <AvailabilityToggle userId={currentUser} />
+      )}
+
+      <h2 style={{ margin: "20px 0" }}>📊 Статистика</h2>
 
       {/* 🏆 ЛІДЕР */}
       {topUser && (
@@ -95,7 +107,6 @@ useEffect(() => {
             marginBottom: 20,
             textAlign: "center",
             fontWeight: 700,
-            fontSize: 16,
             boxShadow: "0 10px 25px rgba(34,197,94,0.4)"
           }}
         >
@@ -110,7 +121,6 @@ useEffect(() => {
           style={{
             display: "flex",
             justifyContent: "space-between",
-            alignItems: "center",
             padding: 12,
             borderRadius: 12,
             background: "#f9fafb",
@@ -122,12 +132,11 @@ useEffect(() => {
             {getUserName(userId)}
           </div>
 
-          <div style={{ fontSize: 14 }}>
+          <div>
             🚗 {s.kyiv} &nbsp;&nbsp; 🚙 {s.feeder}
           </div>
         </div>
       ))}
-
     </div>
   );
 }
