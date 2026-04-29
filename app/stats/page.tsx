@@ -84,12 +84,8 @@ export default function StatsPage() {
 
   const stats = calculateStats(trips);
 
-  const topUser = Object.entries(stats)
-    .sort(
-      (a, b) =>
-        (b[1].kyiv + b[1].feeder) -
-        (a[1].kyiv + a[1].feeder)
-    )[0];
+const topUser = Object.entries(stats)
+  .sort((a, b) => b[1].kyiv - a[1].kyiv)[0];
 
   return (
     <div style={{ padding: 16, paddingBottom: 90 }}>
