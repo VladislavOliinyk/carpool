@@ -5,6 +5,7 @@ export const dynamic = "force-dynamic";
 import { useEffect, useState } from "react";
 import { supabase } from "../../lib/supabase";
 import { calculateStats } from "../create-trip/utils/stats";
+import { calculateBalance } from "../create-trip/utils/balance";
 
 import UserGate from "../components/UserGate";
 import AvailabilityToggle from "../components/AvailabilityToggle";
@@ -21,14 +22,21 @@ type User = {
   name: string;
 };
 
+type Participant = {
+  trip_id: string;
+  user_id: string;
+};
+
 export default function StatsPage() {
   const [trips, setTrips] = useState<Trip[]>([]);
   const [users, setUsers] = useState<User[]>([]);
+  const [participants, setParticipants] = useState<Participant[]>([]);
   const [currentUser, setCurrentUser] = useState<string | null>(null);
 
   useEffect(() => {
     fetchTrips();
     fetchUsers();
+    fetchParticipants();
 
     if (!supabase) return;
 
@@ -42,38 +50,42 @@ export default function StatsPage() {
           table: "trips",
         },
         () => {
-          console.log("⚡ stats update");
           fetchTrips();
+          fetchParticipants();
         }
       )
       .subscribe();
 
     return () => {
-      if (supabase) {
-        supabase.removeChannel(channel);
-      }
+      if (supabase) supabase.removeChannel(channel);
     };
   }, []);
 
   async function fetchTrips() {
     if (!supabase) return;
-
     const { data } = await supabase.from("trips").select("*");
     setTrips((data as Trip[]) || []);
   }
 
   async function fetchUsers() {
     if (!supabase) return;
-
     const { data } = await supabase.from("users").select("*");
     setUsers((data as User[]) || []);
+  }
+
+  async function fetchParticipants() {
+    if (!supabase) return;
+    const { data } = await supabase
+      .from("trip_participants")
+      .select("*");
+
+    setParticipants((data as Participant[]) || []);
   }
 
   function getUserName(id: string) {
     return users.find(u => u.id === id)?.name || "—";
   }
 
-  // 📅 ФОРМАТ ДАТИ
   function formatDate(date: string) {
     const d = new Date(date);
     return d.toLocaleDateString("uk-UA", {
@@ -83,24 +95,24 @@ export default function StatsPage() {
   }
 
   const stats = calculateStats(trips);
+  const balance = calculateBalance(trips, participants);
 
-const topUser = Object.entries(stats)
-  .sort((a, b) => b[1].kyiv - a[1].kyiv)[0];
+  const topUser = Object.entries(stats)
+    .sort((a, b) => b[1].kyiv - a[1].kyiv)[0];
 
   return (
     <div style={{ padding: 16, paddingBottom: 90 }}>
 
-      {/* 👤 ВИБІР ЮЗЕРА */}
+      {/* USER */}
       <UserGate users={users} onSelect={setCurrentUser} />
 
-      {/* 🔘 AVAILABILITY */}
       {currentUser && (
         <AvailabilityToggle userId={currentUser} />
       )}
 
       <h2 style={{ margin: "20px 0" }}>📊 Статистика</h2>
 
-      {/* 🏆 ЛІДЕР */}
+      {/* ЛІДЕР */}
       {topUser && (
         <div
           style={{
@@ -111,14 +123,13 @@ const topUser = Object.entries(stats)
             marginBottom: 20,
             textAlign: "center",
             fontWeight: 700,
-            boxShadow: "0 10px 25px rgba(34,197,94,0.4)"
           }}
         >
           🏆 Лідер: {getUserName(topUser[0])}
         </div>
       )}
 
-      {/* СПИСОК */}
+      {/* СТАТИСТИКА */}
       {Object.entries(stats).map(([userId, s]) => (
         <div
           key={userId}
@@ -129,20 +140,14 @@ const topUser = Object.entries(stats)
             borderRadius: 12,
             background: "#f9fafb",
             marginBottom: 10,
-            boxShadow: "0 2px 8px rgba(0,0,0,0.05)"
           }}
         >
-          <div style={{ fontWeight: 600 }}>
-            {getUserName(userId)}
-          </div>
-
-          <div>
-            🚗 {s.kyiv} &nbsp;&nbsp; 🚙 {s.feeder}
-          </div>
+          <div>{getUserName(userId)}</div>
+          <div>🚗 {s.kyiv} | 🚙 {s.feeder}</div>
         </div>
       ))}
 
-      {/* 📅 ІСТОРІЯ ПОЇЗДОК */}
+      {/* ІСТОРІЯ */}
       <div style={{ marginTop: 30 }}>
         <h3>Останні поїздки</h3>
 
@@ -166,12 +171,40 @@ const topUser = Object.entries(stats)
                   ` (підвіз: ${getUserName(t.feeder_id)})`}
               </div>
 
-              {/* 📅 ДАТА */}
-              <div style={{ opacity: 0.6, fontSize: 12 }}>
+              <div style={{ fontSize: 12, opacity: 0.6 }}>
                 {formatDate(t.created_at)}
               </div>
             </div>
           ))}
+      </div>
+
+      {/* 💰 БАЛАНС */}
+      <div style={{ marginTop: 30 }}>
+        <h3>💰 Баланс</h3>
+
+        {Object.entries(balance).map(([userId, debts]) => (
+          <div
+            key={userId}
+            style={{
+              marginBottom: 15,
+              padding: 12,
+              background: "#fff7ed",
+              borderRadius: 12,
+            }}
+          >
+            <div style={{ fontWeight: 700 }}>
+              {getUserName(userId)}
+            </div>
+
+            {Object.entries(debts as Record<string, number>).map(
+              ([toUserId, amount]) => (
+                <div key={toUserId}>
+                  винен {getUserName(toUserId)}: {amount}
+                </div>
+              )
+            )}
+          </div>
+        ))}
       </div>
 
     </div>

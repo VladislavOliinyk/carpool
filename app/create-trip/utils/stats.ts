@@ -1,5 +1,6 @@
 export function calculateStats(trips: any[]) {
   const stats: Record<string, { kyiv: number; feeder: number }> = {};
+  
 
   trips.forEach(trip => {
     // 🚗 хто віз на Київ
