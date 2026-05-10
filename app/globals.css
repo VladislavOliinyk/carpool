@@ -239,6 +239,17 @@ p {
   letter-spacing: 0;
 }
 
+.logic-version {
+  display: inline-flex;
+  margin-top: 8px;
+  padding: 5px 9px;
+  border-radius: 999px;
+  background: #dcfce7;
+  color: #166534;
+  font-size: 0.72rem;
+  font-weight: 950;
+}
+
 .debt-stack,
 .history-stack,
 .stats-list {

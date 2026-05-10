@@ -110,6 +110,7 @@ export default function BalancePage() {
         <div className="section-heading">
           <p>Balance</p>
           <h2>Хто кому винен</h2>
+          <span className="logic-version">net balance v2</span>
         </div>
 
         <div className="debt-stack">

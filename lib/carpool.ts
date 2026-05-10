@@ -97,9 +97,36 @@ export const calculateBalance = (trips: HydratedTrip[]): Debt[] => {
     });
   });
 
-  return Array.from(ledger.values()).sort((a, b) => {
+  return settleMutualDebts(Array.from(ledger.values())).sort((a, b) => {
     if (b.count !== a.count) return b.count - a.count;
     return `${a.from}-${a.to}`.localeCompare(`${b.from}-${b.to}`, "uk");
+  });
+};
+
+export const settleMutualDebts = (debts: Debt[]): Debt[] => {
+  const raw = new Map<string, number>();
+  const pairs = new Set<string>();
+
+  debts.forEach((debt) => {
+    raw.set(`${debt.from}->${debt.to}`, (raw.get(`${debt.from}->${debt.to}`) ?? 0) + debt.count);
+    pairs.add([debt.from, debt.to].sort().join("<->"));
+  });
+
+  return Array.from(pairs).flatMap((pair) => {
+    const [first, second] = pair.split("<->");
+    const firstOwesSecond = raw.get(`${first}->${second}`) ?? 0;
+    const secondOwesFirst = raw.get(`${second}->${first}`) ?? 0;
+    const diff = firstOwesSecond - secondOwesFirst;
+
+    if (diff > 0) {
+      return [{ from: first, to: second, count: diff }];
+    }
+
+    if (diff < 0) {
+      return [{ from: second, to: first, count: Math.abs(diff) }];
+    }
+
+    return [];
   });
 };
 
