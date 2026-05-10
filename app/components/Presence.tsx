@@ -9,43 +9,32 @@ export default function Presence() {
   useEffect(() => {
     if (!supabase) return;
 
-    const channel = supabase.channel("online-users", {
+    const client = supabase;
+    const channel = client.channel("online-users", {
       config: {
-        presence: { key: Math.random().toString() }
-      }
+        presence: { key: crypto.randomUUID() },
+      },
     });
 
     channel.on("presence", { event: "sync" }, () => {
-      const state = channel.presenceState();
-      const total = Object.keys(state).length;
-      setCount(total);
+      setCount(Object.keys(channel.presenceState()).length || 1);
     });
 
     channel.subscribe(async (status) => {
       if (status === "SUBSCRIBED") {
-        await channel.track({});
+        await channel.track({ online_at: new Date().toISOString() });
       }
     });
 
     return () => {
-      if (supabase) supabase.removeChannel(channel);
+      client.removeChannel(channel);
     };
   }, []);
 
   return (
-    <div
-      style={{
-        position: "fixed",
-        top: 10,
-        right: 10,
-        background: "rgba(0,0,0,0.7)",
-        color: "white",
-        padding: "6px 12px",
-        borderRadius: 20,
-        fontSize: 12
-      }}
-    >
-      🟢 Онлайн: {count}
+    <div className="presence-pill" aria-label={`${count} користувачі онлайн`}>
+      <span />
+      {count} онлайн
     </div>
   );
 }

@@ -15,26 +15,26 @@ export default function AvailabilityToggle({ userId }: Props) {
   const dateStr = tomorrow.toISOString().slice(0, 10);
 
   useEffect(() => {
+    async function fetchStatus() {
+      if (!supabase || !userId) return;
+
+      const { data } = await supabase
+        .from("availability")
+        .select("*")
+        .eq("user_id", userId)
+        .eq("date", dateStr)
+        .single();
+
+      if (data) {
+        setActive(data.available);
+      } else {
+        setActive(true);
+      }
+    }
+
     if (!userId) return;
     fetchStatus();
-  }, [userId]);
-
-  async function fetchStatus() {
-    if (!supabase || !userId) return;
-
-    const { data } = await supabase
-      .from("availability")
-      .select("*")
-      .eq("user_id", userId)
-      .eq("date", dateStr)
-      .single();
-
-    if (data) {
-      setActive(data.available);
-    } else {
-      setActive(true); // дефолт: їде
-    }
-  }
+  }, [dateStr, userId]);
 
   async function toggle() {
     if (!supabase || !userId) return;
@@ -52,32 +52,12 @@ export default function AvailabilityToggle({ userId }: Props) {
   }
 
   return (
-    <div
-      style={{
-        marginTop: 20,
-        padding: 16,
-        borderRadius: 12,
-        background: active ? "#e6f9ec" : "#f3f3f3",
-        textAlign: "center",
-      }}
-    >
-      <div style={{ marginBottom: 10 }}>
-        {active ? "🟢 Я їду завтра" : "⚪ Я не їду завтра"}
+    <section className={`availability ${active ? "active" : ""}`}>
+      <div>
+        <span>Завтра</span>
+        <strong>{active ? "Я їду" : "Я не їду"}</strong>
       </div>
-
-      <button
-        onClick={toggle}
-        style={{
-          padding: "10px 16px",
-          borderRadius: 8,
-          border: "none",
-          background: active ? "#22c55e" : "#888",
-          color: "white",
-          fontWeight: "bold",
-        }}
-      >
-        Змінити
-      </button>
-    </div>
+      <button onClick={toggle}>{active ? "Змінити" : "Увімкнути"}</button>
+    </section>
   );
 }

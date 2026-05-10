@@ -9,11 +9,15 @@ type Availability = {
   [userId: string]: boolean;
 };
 
+type Trip = {
+  driver_id: string;
+};
+
 export function getNextDriverSmart(
   stats: Stats,
   availability: Availability,
   currentUserId: string | null,
-  trips: any[]
+  trips: Trip[]
 ): string | null {
   if (!stats) return null;
 

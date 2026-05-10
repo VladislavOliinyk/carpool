@@ -13,7 +13,7 @@ export function calculateTrip(trip: Trip) {
   const BOR_KM = 10;
   const KYIV_KM = 20;
 
-  let results: Record<string, number> = {};
+  const results: Record<string, number> = {};
 
   const all = trip.participants;
 

@@ -13,52 +13,39 @@ type Props = {
 };
 
 export default function UserGate({ users, onSelect }: Props) {
-  const [current, setCurrent] = useState<string | null>(null);
+  const [current, setCurrent] = useState<string | null>(() => {
+    if (typeof window === "undefined") return null;
+    return localStorage.getItem("user_id");
+  });
 
   useEffect(() => {
-    const saved = localStorage.getItem("user_id");
-    if (saved) {
-      setCurrent(saved);
-      onSelect(saved);
+    if (current) {
+      onSelect(current);
     }
-  }, []);
+  }, [current, onSelect]);
 
-  if (current) return null;
+  if (current || users.length === 0) return null;
 
   return (
-    <div
-      style={{
-        position: "fixed",
-        inset: 0,
-        background: "#fff",
-        display: "flex",
-        flexDirection: "column",
-        justifyContent: "center",
-        alignItems: "center",
-        zIndex: 999,
-      }}
-    >
-      <h2>Хто ти?</h2>
-
-      {users.map((u) => (
-        <button
-          key={u.id}
-          onClick={() => {
-            localStorage.setItem("user_id", u.id);
-            setCurrent(u.id);
-            onSelect(u.id);
-          }}
-          style={{
-            margin: 8,
-            padding: 12,
-            borderRadius: 10,
-            border: "1px solid #ddd",
-            width: 200,
-          }}
-        >
-          {u.name}
-        </button>
-      ))}
-    </div>
+    <section className="user-gate" aria-label="Вибір користувача">
+      <div>
+        <span>Профіль</span>
+        <strong>Хто сьогодні в застосунку?</strong>
+      </div>
+      <div className="user-gate-list">
+        {users.map((user) => (
+          <button
+            key={user.id}
+            onClick={() => {
+              localStorage.setItem("user_id", user.id);
+              setCurrent(user.id);
+              onSelect(user.id);
+            }}
+          >
+            {user.name}
+          </button>
+        ))}
+      </div>
+    </section>
   );
 }

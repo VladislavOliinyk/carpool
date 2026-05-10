@@ -2,211 +2,125 @@
 
 export const dynamic = "force-dynamic";
 
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { supabase } from "../../lib/supabase";
-import { calculateStats } from "../create-trip/utils/stats";
-import { calculateBalance } from "../create-trip/utils/balance";
-
 import UserGate from "../components/UserGate";
 import AvailabilityToggle from "../components/AvailabilityToggle";
-
-type Trip = {
-  id: string;
-  driver_id: string;
-  feeder_id?: string;
-  created_at: string;
-};
-
-type User = {
-  id: string;
-  name: string;
-};
-
-type Participant = {
-  trip_id: string;
-  user_id: string;
-};
+import {
+  calculateBalance,
+  calculateUserStats,
+  hydrateTrips,
+  userName,
+  type Trip,
+  type TripParticipant,
+  type User,
+} from "../../lib/carpool";
 
 export default function StatsPage() {
-  const [trips, setTrips] = useState<Trip[]>([]);
   const [users, setUsers] = useState<User[]>([]);
-  const [participants, setParticipants] = useState<Participant[]>([]);
+  const [trips, setTrips] = useState<Trip[]>([]);
+  const [participants, setParticipants] = useState<TripParticipant[]>([]);
   const [currentUser, setCurrentUser] = useState<string | null>(null);
 
   useEffect(() => {
-    fetchTrips();
-    fetchUsers();
-    fetchParticipants();
+    async function loadData() {
+      if (!supabase) return;
+
+      const [usersResult, tripsResult, participantsResult] = await Promise.all([
+        supabase.from("users").select("*").order("name"),
+        supabase.from("trips").select("*").order("created_at", { ascending: false }),
+        supabase.from("trip_participants").select("*"),
+      ]);
+
+      setUsers((usersResult.data as User[]) ?? []);
+      setTrips((tripsResult.data as Trip[]) ?? []);
+      setParticipants((participantsResult.data as TripParticipant[]) ?? []);
+    }
+
+    loadData();
 
     if (!supabase) return;
 
-    const channel = supabase
-      .channel("realtime-stats")
-      .on(
-        "postgres_changes",
-        {
-          event: "*",
-          schema: "public",
-          table: "trips",
-        },
-        () => {
-          fetchTrips();
-          fetchParticipants();
-        }
-      )
+    const client = supabase;
+    const channel = client
+      .channel("carpool-stats")
+      .on("postgres_changes", { event: "*", schema: "public", table: "trips" }, loadData)
+      .on("postgres_changes", { event: "*", schema: "public", table: "trip_participants" }, loadData)
       .subscribe();
 
     return () => {
-      if (supabase) supabase.removeChannel(channel);
+      client.removeChannel(channel);
     };
   }, []);
 
-  async function fetchTrips() {
-    if (!supabase) return;
-    const { data } = await supabase.from("trips").select("*");
-    setTrips((data as Trip[]) || []);
-  }
+  const hydratedTrips = useMemo(
+    () => hydrateTrips(trips, participants),
+    [trips, participants]
+  );
 
-  async function fetchUsers() {
-    if (!supabase) return;
-    const { data } = await supabase.from("users").select("*");
-    setUsers((data as User[]) || []);
-  }
+  const stats = useMemo(
+    () => calculateUserStats(users, hydratedTrips),
+    [users, hydratedTrips]
+  );
 
-  async function fetchParticipants() {
-    if (!supabase) return;
-    const { data } = await supabase
-      .from("trip_participants")
-      .select("*");
-
-    setParticipants((data as Participant[]) || []);
-  }
-
-  function getUserName(id: string) {
-    return users.find(u => u.id === id)?.name || "—";
-  }
-
-  function formatDate(date: string) {
-    const d = new Date(date);
-    return d.toLocaleDateString("uk-UA", {
-      day: "2-digit",
-      month: "2-digit",
-    });
-  }
-
-  const stats = calculateStats(trips);
-  const balance = calculateBalance(trips, participants);
-
-  const topUser = Object.entries(stats)
-    .sort((a, b) => b[1].kyiv - a[1].kyiv)[0];
+  const debts = useMemo(() => calculateBalance(hydratedTrips), [hydratedTrips]);
+  const topDriver = [...stats].sort((a, b) => b.driverTrips - a.driverTrips)[0];
+  const totalHandled = hydratedTrips.reduce(
+    (sum, trip) => sum + trip.participants.length + (trip.feeder_id ? 1 : 0),
+    0
+  );
 
   return (
-    <div style={{ padding: 16, paddingBottom: 90 }}>
+    <main className="app-shell">
+      <section className="compact-header">
+        <div>
+          <p>Stats</p>
+          <h1>Аналітика справедливості</h1>
+        </div>
+      </section>
 
-      {/* USER */}
       <UserGate users={users} onSelect={setCurrentUser} />
+      {currentUser && <AvailabilityToggle userId={currentUser} />}
 
-      {currentUser && (
-        <AvailabilityToggle userId={currentUser} />
-      )}
-
-      <h2 style={{ margin: "20px 0" }}>📊 Статистика</h2>
-
-      {/* ЛІДЕР */}
-      {topUser && (
-        <div
-          style={{
-            padding: 18,
-            background: "linear-gradient(135deg, #22c55e, #16a34a)",
-            color: "white",
-            borderRadius: 16,
-            marginBottom: 20,
-            textAlign: "center",
-            fontWeight: 700,
-          }}
-        >
-          🏆 Лідер: {getUserName(topUser[0])}
+      <section className="stats-hero">
+        <div>
+          <span>Лідер водіння</span>
+          <strong>{topDriver ? userName(users, topDriver.userId) : "—"}</strong>
         </div>
-      )}
-
-      {/* СТАТИСТИКА */}
-      {Object.entries(stats).map(([userId, s]) => (
-        <div
-          key={userId}
-          style={{
-            display: "flex",
-            justifyContent: "space-between",
-            padding: 12,
-            borderRadius: 12,
-            background: "#f9fafb",
-            marginBottom: 10,
-          }}
-        >
-          <div>{getUserName(userId)}</div>
-          <div>🚗 {s.kyiv} | 🚙 {s.feeder}</div>
+        <div>
+          <span>Людино-поїздок</span>
+          <strong>{totalHandled}</strong>
         </div>
-      ))}
+        <div>
+          <span>Активних боргів</span>
+          <strong>{debts.length}</strong>
+        </div>
+      </section>
 
-      {/* ІСТОРІЯ */}
-      <div style={{ marginTop: 30 }}>
-        <h3>Останні поїздки</h3>
-
-        {trips
-          .slice()
-          .reverse()
-          .slice(0, 5)
-          .map((t) => (
-            <div
-              key={t.id}
-              style={{
-                marginBottom: 10,
-                padding: 10,
-                background: "#f9fafb",
-                borderRadius: 10,
-              }}
-            >
+      <section className="stats-list">
+        {stats.map((item) => (
+          <article className="stat-card" key={item.userId}>
+            <div className="stat-title">
+              <h2>{userName(users, item.userId)}</h2>
+              <span>{item.helpedPeople} допомог</span>
+            </div>
+            <div className="stat-metrics">
               <div>
-                🚗 {getUserName(t.driver_id)}
-                {t.feeder_id &&
-                  ` (підвіз: ${getUserName(t.feeder_id)})`}
+                <span>Водій</span>
+                <strong>{item.driverTrips}</strong>
               </div>
-
-              <div style={{ fontSize: 12, opacity: 0.6 }}>
-                {formatDate(t.created_at)}
+              <div>
+                <span>Пасажир</span>
+                <strong>{item.passengerTrips}</strong>
+              </div>
+              <div>
+                <span>Feeder</span>
+                <strong>{item.feederTrips}</strong>
               </div>
             </div>
-          ))}
-      </div>
-
-      {/* 💰 БАЛАНС */}
-      <div style={{ marginTop: 30 }}>
-        <h3>💰 Баланс</h3>
-
-        {Object.entries(balance).map(([userId, debts]) => (
-          <div
-            key={userId}
-            style={{
-              marginBottom: 15,
-              padding: 12,
-              background: "#fff7ed",
-              borderRadius: 12,
-            }}
-          >
-            <div style={{ fontWeight: 700 }}>
-              {getUserName(userId)}
-            </div>
-
-            {Object.entries(debts as Record<string, number>).map(
-              ([toUserId, amount]) => (
-                <div key={toUserId}>
-                  винен {getUserName(toUserId)}: {amount}
-                </div>
-              )
-            )}
-          </div>
+          </article>
         ))}
-      </div>
-
-    </div>
+      </section>
+    </main>
   );
 }

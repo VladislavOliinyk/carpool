@@ -1,36 +1,45 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# Carpool
 
-## Getting Started
+Mobile-first PWA for a small group that shares rides to Kyiv and keeps a transparent balance of who drove whom.
 
-First, run the development server:
+## Core Logic
 
-```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
+Each trip has:
+
+- `driver_id` — the person driving everyone to Kyiv
+- `feeder_id` — optional person who brings participants to the driver
+- `trip_participants` — passengers collected by the feeder and then carried by the driver
+
+Balance rules:
+
+- `feeder -> driver +1`
+- each participant `-> driver +1`
+- if feeder exists, each participant `-> feeder +1`
+- driver never owes feeder for the feeder stage
+
+The fairness engine is in `lib/carpool.ts`.
+
+## Supabase Schema Note
+
+The existing schema needs `feeder_id` on `trips`:
+
+```sql
+alter table public.trips
+add column if not exists feeder_id uuid null references public.users(id);
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+If your `users.id` is `text` instead of `uuid`, use:
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+```sql
+alter table public.trips
+add column if not exists feeder_id text null;
+```
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+## Development
 
-## Learn More
+```bash
+npm install
+npm run dev
+```
 
-To learn more about Next.js, take a look at the following resources:
-
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
-
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
-
-## Deploy on Vercel
-
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
-
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+Open `http://localhost:3000`.

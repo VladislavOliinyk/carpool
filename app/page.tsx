@@ -1,116 +1,186 @@
 "use client";
 
-import { useState } from "react";
+export const dynamic = "force-dynamic";
 
-export default function Home() {
-  const [pressed, setPressed] = useState(false);
+import Link from "next/link";
+import { useEffect, useMemo, useState } from "react";
+import { supabase } from "../lib/supabase";
+import {
+  calculateBalance,
+  formatTripDate,
+  hydrateTrips,
+  tripDebtUnit,
+  userName,
+  type Debt,
+  type HydratedTrip,
+  type Trip,
+  type TripParticipant,
+  type User,
+} from "../lib/carpool";
+
+export default function BalancePage() {
+  const [users, setUsers] = useState<User[]>([]);
+  const [trips, setTrips] = useState<Trip[]>([]);
+  const [participants, setParticipants] = useState<TripParticipant[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    async function loadData() {
+      if (!supabase) {
+        setLoading(false);
+        return;
+      }
+
+      const [usersResult, tripsResult, participantsResult] = await Promise.all([
+        supabase.from("users").select("*").order("name"),
+        supabase.from("trips").select("*").order("created_at", { ascending: false }),
+        supabase.from("trip_participants").select("*"),
+      ]);
+
+      setUsers((usersResult.data as User[]) ?? []);
+      setTrips((tripsResult.data as Trip[]) ?? []);
+      setParticipants((participantsResult.data as TripParticipant[]) ?? []);
+      setLoading(false);
+    }
+
+    loadData();
+
+    if (!supabase) return;
+
+    const client = supabase;
+    const channel = client
+      .channel("carpool-balance")
+      .on("postgres_changes", { event: "*", schema: "public", table: "trips" }, loadData)
+      .on("postgres_changes", { event: "*", schema: "public", table: "trip_participants" }, loadData)
+      .subscribe();
+
+    return () => {
+      client.removeChannel(channel);
+    };
+  }, []);
+
+  const hydratedTrips = useMemo(
+    () => hydrateTrips(trips, participants),
+    [trips, participants]
+  );
+
+  const debts = useMemo(() => calculateBalance(hydratedTrips), [hydratedTrips]);
+  const totalDebt = debts.reduce((sum, debt) => sum + debt.count, 0);
+  const latestTrip = hydratedTrips[0];
 
   return (
-    <div style={{
-      height: "100vh",
-      display: "flex",
-      flexDirection: "column",
-      justifyContent: "space-between",
-      alignItems: "center",
-      padding: "40px 20px, paddingBottom: 100",
-      fontFamily: "system-ui",
-      background: "linear-gradient(180deg, #f9fafb 0%, #eef2f7 100%)",
-      animation: "fadeIn 0.6s ease"
-    }}>
-
-      <div />
-
-      {/* CENTER */}
-      <div style={{
-        textAlign: "center",
-        animation: "slideUp 0.7s ease"
-      }}>
-
-        {/* ICON */}
-        <div style={{
-          width: 150,
-          height: 150,
-          borderRadius: 32,
-          overflow: "hidden",
-          boxShadow: "0 20px 40px rgba(0,0,0,0.15)",
-          margin: "0 auto 24px",
-          transform: "scale(1)",
-          transition: "0.3s"
-        }}>
-          <img
-            src="/icon-512.png"
-            alt="Carpool"
-            style={{ width: "100%", height: "100%" }}
-          />
+    <main className="app-shell">
+      <section className="balance-hero">
+        <div className="hero-copy">
+          <div className="brand-row">
+            <span className="logo-mark">C</span>
+            <span>Carpool</span>
+          </div>
+          <h1>Чесний баланс спільних поїздок</h1>
+          <p>
+            Облік не рахує “таксі”. Він показує, хто реально кого віз: підвіз
+            до водія і головну дорогу до Києва.
+          </p>
         </div>
 
-        {/* TITLE */}
-        <h1 style={{
-          fontSize: 32,
-          fontWeight: 800,
-          margin: 0,
-          letterSpacing: "-0.5px"
-        }}>
-          Carpool
-        </h1>
+        <div className="hero-meter" aria-label="Кількість боргів">
+          <span>{totalDebt}</span>
+          <small>боргів</small>
+        </div>
+      </section>
 
-        {/* SUB */}
-        <p style={{
-          color: "#6b7280",
-          marginTop: 10,
-          fontSize: 15
-        }}>
-          EV ride sharing, але без хаосу ⚡
+      <section className="quick-actions" aria-label="Швидкі дії">
+        <Link className="action-card action-primary" href="/create-trip">
+          <span className="action-icon">＋</span>
+          <span>
+            <strong>Додати поїздку</strong>
+            <small>driver, feeder, participants</small>
+          </span>
+        </Link>
+        <Link className="action-card" href="/stats">
+          <span className="action-icon">▦</span>
+          <span>
+            <strong>Статистика</strong>
+            <small>водії, пасажири, допомога</small>
+          </span>
+        </Link>
+      </section>
+
+      <section className="section-block">
+        <div className="section-heading">
+          <p>Balance</p>
+          <h2>Хто кому винен</h2>
+        </div>
+
+        <div className="debt-stack">
+          {loading && <div className="empty-state">Завантажую баланс…</div>}
+
+          {!loading && debts.length === 0 && (
+            <div className="empty-state">Баланс чистий. Ніхто нікому не винен.</div>
+          )}
+
+          {!loading &&
+            debts.map((debt) => (
+              <DebtCard key={`${debt.from}-${debt.to}`} debt={debt} users={users} />
+            ))}
+        </div>
+      </section>
+
+      <section className="section-block">
+        <div className="section-heading">
+          <p>Остання поїздка</p>
+          <h2>Історія</h2>
+        </div>
+
+        {latestTrip ? (
+          <TripPreview trip={latestTrip} users={users} />
+        ) : (
+          <div className="empty-state">Ще немає поїздок.</div>
+        )}
+      </section>
+    </main>
+  );
+}
+
+function DebtCard({ debt, users }: { debt: Debt; users: User[] }) {
+  return (
+    <article className="debt-card">
+      <div>
+        <span className="person-pill from">{userName(users, debt.from)}</span>
+        <p>
+          винен <strong>{userName(users, debt.to)}</strong>
         </p>
-
       </div>
+      <div className="debt-count">
+        <strong>{debt.count}</strong>
+        <span>{tripDebtUnit(debt.count)}</span>
+      </div>
+    </article>
+  );
+}
 
-      {/* BUTTON */}
-      <a href="/create-trip" style={{ width: "100%" }}>
-        <button
-          onMouseDown={() => setPressed(true)}
-          onMouseUp={() => setPressed(false)}
-          onTouchStart={() => setPressed(true)}
-          onTouchEnd={() => setPressed(false)}
-          style={{
-            width: "100%",
-            padding: 18,
-            background: "linear-gradient(135deg, #22c55e, #16a34a)",
-            color: "white",
-            border: "none",
-            borderRadius: 16,
-            fontSize: 18,
-            fontWeight: 700,
-            transform: pressed ? "scale(0.96)" : "scale(1)",
-            transition: "0.15s",
-            boxShadow: "0 10px 25px rgba(34,197,94,0.4)"
-          }}
-        >
-          ➕ Додати поїздку
-        </button>
-      </a>
+function TripPreview({ trip, users }: { trip: HydratedTrip; users: User[] }) {
+  const kyivPassengers = [
+    ...(trip.feeder_id ? [trip.feeder_id] : []),
+    ...trip.participants,
+  ];
 
-      {/* ANIMATIONS */}
-      <style>
-        {`
-          @keyframes fadeIn {
-            from { opacity: 0; }
-            to { opacity: 1; }
-          }
-
-          @keyframes slideUp {
-            from {
-              opacity: 0;
-              transform: translateY(30px);
-            }
-            to {
-              opacity: 1;
-              transform: translateY(0);
-            }
-          }
-        `}
-      </style>
-
-    </div>
+  return (
+    <article className="trip-preview">
+      <time>{formatTripDate(trip.created_at)}</time>
+      <div>
+        <p>
+          <span className="route-badge">Київ</span>
+          {userName(users, trip.driver_id)} віз:{" "}
+          <strong>{kyivPassengers.map((id) => userName(users, id)).join(", ") || "—"}</strong>
+        </p>
+        {trip.feeder_id && (
+          <p className="support-line">
+            Підвіз: {userName(users, trip.feeder_id)} →{" "}
+            {trip.participants.map((id) => userName(users, id)).join(", ") || "—"}
+          </p>
+        )}
+      </div>
+    </article>
   );
 }

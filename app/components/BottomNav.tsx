@@ -1,7 +1,7 @@
 "use client";
 
-import { usePathname } from "next/navigation";
 import Link from "next/link";
+import { usePathname } from "next/navigation";
 
 type NavItemProps = {
   href: string;
@@ -12,47 +12,29 @@ type NavItemProps = {
 export default function BottomNav() {
   const path = usePathname();
 
-  const Item = ({ href, icon, label }: NavItemProps) => {
-    const active = path === href;
-
-    return (
-      <Link href={href} style={{ flex: 1 }}>
-        <div
-          style={{
-            display: "flex",
-            flexDirection: "column",
-            alignItems: "center",
-            fontSize: 12,
-            color: active ? "#22c55e" : "#888",
-          }}
-        >
-          <div style={{ fontSize: 22 }}>{icon}</div>
-          {label}
-        </div>
-      </Link>
-    );
-  };
+  const items: NavItemProps[] = [
+    { href: "/create-trip", icon: "＋", label: "Trips" },
+    { href: "/", icon: "≋", label: "Balance" },
+    { href: "/stats", icon: "▦", label: "Stats" },
+  ];
 
   return (
-    <div
-      style={{
-        position: "fixed",
-        bottom: 0,
-        left: 0,
-        right: 0,
-        height: 70,
-        background: "rgba(255,255,255,0.95)",
-        backdropFilter: "blur(10px)",
-        borderTop: "1px solid #eee",
-        display: "flex",
-        alignItems: "center",
-        justifyContent: "space-around",
-        zIndex: 100,
-      }}
-    >
-      <Item href="/" icon="🏠" label="Home" />
-      <Item href="/create-trip" icon="🚗" label="Trips" />
-      <Item href="/stats" icon="📊" label="Stats" />
-    </div>
+    <nav className="bottom-nav" aria-label="Головна навігація">
+      {items.map((item) => {
+        const active = path === item.href;
+
+        return (
+          <Link
+            aria-current={active ? "page" : undefined}
+            className={active ? "active" : ""}
+            href={item.href}
+            key={item.href}
+          >
+            <span>{item.icon}</span>
+            {item.label}
+          </Link>
+        );
+      })}
+    </nav>
   );
 }

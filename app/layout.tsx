@@ -1,23 +1,13 @@
 import type { Metadata } from "next";
-import { Geist, Geist_Mono } from "next/font/google";
 import "./globals.css";
 import BottomNav from "./components/BottomNav";
 import Presence from "./components/Presence";
 import { ToastContainer } from "./components/Toast";
 
-const geistSans = Geist({
-  variable: "--font-geist-sans",
-  subsets: ["latin"],
-});
-
-const geistMono = Geist_Mono({
-  variable: "--font-geist-mono",
-  subsets: ["latin"],
-});
-
 export const metadata: Metadata = {
   title: "Carpool",
-  description: "Carpool EV App",
+  description: "Справедливий баланс спільних поїздок до Києва",
+  manifest: "/manifest.json",
 };
 
 export default function RootLayout({
