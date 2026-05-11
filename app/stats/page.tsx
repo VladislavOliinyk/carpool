@@ -63,12 +63,13 @@ export default function StatsPage() {
     [users, hydratedTrips]
   );
 
-  const debts = useMemo(() => calculateBalance(hydratedTrips), [hydratedTrips]);
+  const balance = useMemo(() => calculateBalance(hydratedTrips), [hydratedTrips]);
   const topDriver = [...stats].sort((a, b) => b.driverTrips - a.driverTrips)[0];
   const totalHandled = hydratedTrips.reduce(
     (sum, trip) => sum + trip.participants.length + (trip.feeder_id ? 1 : 0),
     0
   );
+  const activeDebts = balance.driverDebts.length + balance.feederDebts.length;
 
   return (
     <main className="app-shell">
@@ -93,7 +94,7 @@ export default function StatsPage() {
         </div>
         <div>
           <span>Активних боргів</span>
-          <strong>{debts.length}</strong>
+          <strong>{activeDebts}</strong>
         </div>
       </section>
 
@@ -120,6 +121,27 @@ export default function StatsPage() {
             </div>
           </article>
         ))}
+      </section>
+
+      <section className="section-block">
+        <div className="section-heading">
+          <p>Пояснення</p>
+          <h2>Що рахується окремо</h2>
+        </div>
+        <div className="rules-grid">
+          <article>
+            <strong>Водій</strong>
+            <span>Влад/Дмитро: Бориспіль → Київ через Олександрівку. Ігор: Олександрівка → Київ.</span>
+          </article>
+          <article>
+            <strong>Пасажир</strong>
+            <span>Усі, хто не є driver у конкретній поїздці, включно з feeder.</span>
+          </article>
+          <article>
+            <strong>Feeder</strong>
+            <span>Окремий відрізок Бориспіль → Олександрівка між Владом і Дмитром.</span>
+          </article>
+        </div>
       </section>
     </main>
   );

@@ -257,6 +257,43 @@ p {
   gap: 11px;
 }
 
+.balance-category {
+  display: grid;
+  gap: 10px;
+}
+
+.balance-category + .balance-category {
+  margin-top: 8px;
+}
+
+.category-title {
+  display: grid;
+  gap: 3px;
+  padding: 13px 14px;
+  border: 1px solid rgba(29, 78, 216, 0.12);
+  border-radius: 18px;
+  background: #eff6ff;
+  color: #1e3a8a;
+}
+
+.category-title.feeder {
+  border-color: rgba(194, 65, 12, 0.14);
+  background: #fff7ed;
+  color: #9a3412;
+}
+
+.category-title span {
+  font-weight: 950;
+}
+
+.category-title small {
+  color: currentColor;
+  font-size: 0.78rem;
+  font-weight: 760;
+  opacity: 0.74;
+  line-height: 1.25;
+}
+
 .debt-card,
 .trip-preview,
 .history-item,
@@ -629,6 +666,32 @@ select:focus {
   color: var(--green-dark);
   font-size: 1.55rem;
   line-height: 1;
+}
+
+.rules-grid {
+  display: grid;
+  gap: 10px;
+}
+
+.rules-grid article {
+  display: grid;
+  gap: 5px;
+  padding: 14px;
+  border: 1px solid var(--line);
+  border-radius: 18px;
+  background: var(--card);
+  box-shadow: 0 12px 32px rgba(24, 42, 31, 0.08);
+}
+
+.rules-grid strong {
+  color: var(--green-dark);
+}
+
+.rules-grid span {
+  color: var(--muted);
+  font-size: 0.9rem;
+  line-height: 1.35;
+  font-weight: 720;
 }
 
 .bottom-nav {

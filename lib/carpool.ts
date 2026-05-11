@@ -25,6 +25,11 @@ export type Debt = {
   count: number;
 };
 
+export type BalanceSummary = {
+  driverDebts: Debt[];
+  feederDebts: Debt[];
+};
+
 export type UserStats = {
   userId: string;
   driverTrips: number;
@@ -80,7 +85,7 @@ export const hydrateTrips = (
     .sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
 };
 
-export const calculateBalance = (trips: HydratedTrip[]): Debt[] => {
+export const calculateDriverBalance = (trips: HydratedTrip[]): Debt[] => {
   const ledger = new Map<string, Debt>();
 
   trips.forEach((trip) => {
@@ -91,9 +96,6 @@ export const calculateBalance = (trips: HydratedTrip[]): Debt[] => {
     trip.participants.forEach((participantId) => {
       addDebt(ledger, participantId, trip.driver_id);
 
-      if (trip.feeder_id) {
-        addDebt(ledger, participantId, trip.feeder_id);
-      }
     });
   });
 
@@ -101,6 +103,30 @@ export const calculateBalance = (trips: HydratedTrip[]): Debt[] => {
     if (b.count !== a.count) return b.count - a.count;
     return `${a.from}-${a.to}`.localeCompare(`${b.from}-${b.to}`, "uk");
   });
+};
+
+export const calculateFeederBalance = (trips: HydratedTrip[]): Debt[] => {
+  const ledger = new Map<string, Debt>();
+
+  trips.forEach((trip) => {
+    if (!trip.feeder_id) return;
+
+    trip.participants.forEach((participantId) => {
+      addDebt(ledger, participantId, trip.feeder_id as string);
+    });
+  });
+
+  return settleMutualDebts(Array.from(ledger.values())).sort((a, b) => {
+    if (b.count !== a.count) return b.count - a.count;
+    return `${a.from}-${a.to}`.localeCompare(`${b.from}-${b.to}`, "uk");
+  });
+};
+
+export const calculateBalance = (trips: HydratedTrip[]): BalanceSummary => {
+  return {
+    driverDebts: calculateDriverBalance(trips),
+    feederDebts: calculateFeederBalance(trips),
+  };
 };
 
 export const settleMutualDebts = (debts: Debt[]): Debt[] => {

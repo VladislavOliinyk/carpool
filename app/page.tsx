@@ -64,8 +64,10 @@ export default function BalancePage() {
     [trips, participants]
   );
 
-  const debts = useMemo(() => calculateBalance(hydratedTrips), [hydratedTrips]);
-  const totalDebt = debts.reduce((sum, debt) => sum + debt.count, 0);
+  const balance = useMemo(() => calculateBalance(hydratedTrips), [hydratedTrips]);
+  const totalDebt =
+    balance.driverDebts.reduce((sum, debt) => sum + debt.count, 0) +
+    balance.feederDebts.reduce((sum, debt) => sum + debt.count, 0);
   const latestTrip = hydratedTrips[0];
 
   return (
@@ -110,20 +112,45 @@ export default function BalancePage() {
         <div className="section-heading">
           <p>Balance</p>
           <h2>Хто кому винен</h2>
-          <span className="logic-version">net balance v2</span>
+          <span className="logic-version">driver + feeder balance v3</span>
         </div>
 
-        <div className="debt-stack">
+        <div className="balance-category">
+          <div className="category-title">
+            <span>Водійські поїздки</span>
+            <small>усі пасажири повертають водієві саме водіння</small>
+          </div>
+          <div className="debt-stack">
+            {loading && <div className="empty-state">Завантажую баланс…</div>}
+
+            {!loading && balance.driverDebts.length === 0 && (
+              <div className="empty-state">Водійський баланс рівний.</div>
+            )}
+
+            {!loading &&
+              balance.driverDebts.map((debt) => (
+                <DebtCard key={`driver-${debt.from}-${debt.to}`} debt={debt} users={users} />
+              ))}
+          </div>
+        </div>
+
+        <div className="balance-category">
+          <div className="category-title feeder">
+            <span>Feeder-відрізок</span>
+            <small>Бориспіль → Олександрівка, тільки між Владом і Дмитром</small>
+          </div>
+          <div className="debt-stack">
           {loading && <div className="empty-state">Завантажую баланс…</div>}
 
-          {!loading && debts.length === 0 && (
-            <div className="empty-state">Баланс чистий. Ніхто нікому не винен.</div>
+          {!loading && balance.feederDebts.length === 0 && (
+            <div className="empty-state">Feeder-баланс рівний.</div>
           )}
 
           {!loading &&
-            debts.map((debt) => (
-              <DebtCard key={`${debt.from}-${debt.to}`} debt={debt} users={users} />
+            balance.feederDebts.map((debt) => (
+              <DebtCard key={`feeder-${debt.from}-${debt.to}`} debt={debt} users={users} />
             ))}
+          </div>
         </div>
       </section>
 
