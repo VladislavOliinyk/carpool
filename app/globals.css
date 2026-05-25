@@ -423,8 +423,7 @@ p {
     linear-gradient(180deg, rgba(255, 255, 255, 0.95), rgba(248, 255, 242, 0.9));
 }
 
-.user-gate,
-.availability {
+.user-gate {
   display: grid;
   gap: 12px;
   margin-bottom: 14px;
@@ -435,8 +434,7 @@ p {
   box-shadow: 0 12px 32px rgba(24, 42, 31, 0.08);
 }
 
-.user-gate span,
-.availability span {
+.user-gate span {
   color: var(--green-dark);
   font-size: 0.76rem;
   font-weight: 950;
@@ -444,8 +442,7 @@ p {
   text-transform: uppercase;
 }
 
-.user-gate strong,
-.availability strong {
+.user-gate strong {
   display: block;
   margin-top: 4px;
   font-size: 1.05rem;
@@ -457,8 +454,7 @@ p {
   gap: 8px;
 }
 
-.user-gate-list button,
-.availability button {
+.user-gate-list button {
   min-height: 42px;
   border: 0;
   border-radius: 999px;
@@ -468,22 +464,6 @@ p {
 
 .user-gate-list button {
   padding: 0 14px;
-  background: #102018;
-  color: #fff;
-}
-
-.availability {
-  grid-template-columns: 1fr auto;
-  align-items: center;
-  background: #f1f5f9;
-}
-
-.availability.active {
-  background: var(--mint);
-}
-
-.availability button {
-  padding: 0 15px;
   background: #102018;
   color: #fff;
 }

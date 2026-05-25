@@ -105,13 +105,17 @@ export const calculateDriverBalance = (trips: HydratedTrip[]): Debt[] => {
   });
 };
 
-export const calculateFeederBalance = (trips: HydratedTrip[]): Debt[] => {
+export const calculateFeederBalance = (trips: HydratedTrip[], users: User[] = []): Debt[] => {
   const ledger = new Map<string, Debt>();
 
   trips.forEach((trip) => {
     if (!trip.feeder_id) return;
 
-    trip.participants.forEach((participantId) => {
+    const feederPassengers = users
+      .map((user) => user.id)
+      .filter((userId) => userId !== trip.driver_id && userId !== trip.feeder_id);
+
+    feederPassengers.forEach((participantId) => {
       addDebt(ledger, participantId, trip.feeder_id as string);
     });
   });
@@ -122,10 +126,10 @@ export const calculateFeederBalance = (trips: HydratedTrip[]): Debt[] => {
   });
 };
 
-export const calculateBalance = (trips: HydratedTrip[]): BalanceSummary => {
+export const calculateBalance = (trips: HydratedTrip[], users: User[] = []): BalanceSummary => {
   return {
     driverDebts: calculateDriverBalance(trips),
-    feederDebts: calculateFeederBalance(trips),
+    feederDebts: calculateFeederBalance(trips, users),
   };
 };
 

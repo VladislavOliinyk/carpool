@@ -64,7 +64,7 @@ export default function BalancePage() {
     [trips, participants]
   );
 
-  const balance = useMemo(() => calculateBalance(hydratedTrips), [hydratedTrips]);
+  const balance = useMemo(() => calculateBalance(hydratedTrips, users), [hydratedTrips, users]);
   const totalDebt =
     balance.driverDebts.reduce((sum, debt) => sum + debt.count, 0) +
     balance.feederDebts.reduce((sum, debt) => sum + debt.count, 0);
@@ -112,7 +112,7 @@ export default function BalancePage() {
         <div className="section-heading">
           <p>Balance</p>
           <h2>Хто кому винен</h2>
-          <span className="logic-version">driver + feeder balance v3</span>
+          <span className="logic-version">driver + feeder balance v4</span>
         </div>
 
         <div className="balance-category">

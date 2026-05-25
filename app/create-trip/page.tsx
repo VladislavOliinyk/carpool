@@ -6,7 +6,6 @@ import { useEffect, useMemo, useState } from "react";
 import { supabase } from "../../lib/supabase";
 import { Toast } from "../components/Toast";
 import UserGate from "../components/UserGate";
-import AvailabilityToggle from "../components/AvailabilityToggle";
 import {
   formatTripDate,
   hydrateTrips,
@@ -24,7 +23,7 @@ export default function CreateTrip() {
   const [driver, setDriver] = useState("");
   const [feeder, setFeeder] = useState("");
   const [participants, setParticipants] = useState<string[]>([]);
-  const [currentUser, setCurrentUser] = useState<string | null>(null);
+  const [, setCurrentUser] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
 
   useEffect(() => {
@@ -150,7 +149,6 @@ export default function CreateTrip() {
       </section>
 
       <UserGate users={users} onSelect={setCurrentUser} />
-      {currentUser && <AvailabilityToggle userId={currentUser} />}
 
       <section className="trip-form">
         <label className="form-field">

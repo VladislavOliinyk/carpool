@@ -5,7 +5,6 @@ export const dynamic = "force-dynamic";
 import { useEffect, useMemo, useState } from "react";
 import { supabase } from "../../lib/supabase";
 import UserGate from "../components/UserGate";
-import AvailabilityToggle from "../components/AvailabilityToggle";
 import {
   calculateBalance,
   calculateUserStats,
@@ -20,7 +19,7 @@ export default function StatsPage() {
   const [users, setUsers] = useState<User[]>([]);
   const [trips, setTrips] = useState<Trip[]>([]);
   const [participants, setParticipants] = useState<TripParticipant[]>([]);
-  const [currentUser, setCurrentUser] = useState<string | null>(null);
+  const [, setCurrentUser] = useState<string | null>(null);
 
   useEffect(() => {
     async function loadData() {
@@ -63,7 +62,7 @@ export default function StatsPage() {
     [users, hydratedTrips]
   );
 
-  const balance = useMemo(() => calculateBalance(hydratedTrips), [hydratedTrips]);
+  const balance = useMemo(() => calculateBalance(hydratedTrips, users), [hydratedTrips, users]);
   const topDriver = [...stats].sort((a, b) => b.driverTrips - a.driverTrips)[0];
   const totalHandled = hydratedTrips.reduce(
     (sum, trip) => sum + trip.participants.length + (trip.feeder_id ? 1 : 0),
@@ -81,7 +80,6 @@ export default function StatsPage() {
       </section>
 
       <UserGate users={users} onSelect={setCurrentUser} />
-      {currentUser && <AvailabilityToggle userId={currentUser} />}
 
       <section className="stats-hero">
         <div>
