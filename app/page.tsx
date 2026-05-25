@@ -7,11 +7,14 @@ import { useEffect, useMemo, useState } from "react";
 import { supabase } from "../lib/supabase";
 import {
   calculateBalance,
+  explainDebt,
   formatTripDate,
   hydrateTrips,
   tripDebtUnit,
   userName,
   type Debt,
+  type DebtExplanation,
+  type DebtLedger,
   type HydratedTrip,
   type Trip,
   type TripParticipant,
@@ -23,6 +26,10 @@ export default function BalancePage() {
   const [trips, setTrips] = useState<Trip[]>([]);
   const [participants, setParticipants] = useState<TripParticipant[]>([]);
   const [loading, setLoading] = useState(true);
+  const [selectedDebt, setSelectedDebt] = useState<{
+    ledger: DebtLedger;
+    debt: Debt;
+  } | null>(null);
 
   useEffect(() => {
     async function loadData() {
@@ -69,6 +76,9 @@ export default function BalancePage() {
     balance.driverDebts.reduce((sum, debt) => sum + debt.count, 0) +
     balance.feederDebts.reduce((sum, debt) => sum + debt.count, 0);
   const latestTrip = hydratedTrips[0];
+  const selectedExplanation = selectedDebt
+    ? explainDebt(selectedDebt.ledger, selectedDebt.debt, hydratedTrips, users)
+    : null;
 
   return (
     <main className="app-shell">
@@ -129,7 +139,13 @@ export default function BalancePage() {
 
             {!loading &&
               balance.driverDebts.map((debt) => (
-                <DebtCard key={`driver-${debt.from}-${debt.to}`} debt={debt} users={users} />
+                <DebtCard
+                  key={`driver-${debt.from}-${debt.to}`}
+                  debt={debt}
+                  ledger="driver"
+                  onSelect={() => setSelectedDebt({ ledger: "driver", debt })}
+                  users={users}
+                />
               ))}
           </div>
         </div>
@@ -148,7 +164,13 @@ export default function BalancePage() {
 
           {!loading &&
             balance.feederDebts.map((debt) => (
-              <DebtCard key={`feeder-${debt.from}-${debt.to}`} debt={debt} users={users} />
+              <DebtCard
+                key={`feeder-${debt.from}-${debt.to}`}
+                debt={debt}
+                ledger="feeder"
+                onSelect={() => setSelectedDebt({ ledger: "feeder", debt })}
+                users={users}
+              />
             ))}
           </div>
         </div>
@@ -166,13 +188,31 @@ export default function BalancePage() {
           <div className="empty-state">Ще немає поїздок.</div>
         )}
       </section>
+
+      {selectedExplanation && (
+        <DebtExplanationSheet
+          explanation={selectedExplanation}
+          onClose={() => setSelectedDebt(null)}
+          users={users}
+        />
+      )}
     </main>
   );
 }
 
-function DebtCard({ debt, users }: { debt: Debt; users: User[] }) {
+function DebtCard({
+  debt,
+  ledger,
+  onSelect,
+  users,
+}: {
+  debt: Debt;
+  ledger: DebtLedger;
+  onSelect: () => void;
+  users: User[];
+}) {
   return (
-    <article className="debt-card">
+    <button className="debt-card" onClick={onSelect}>
       <div>
         <span className="person-pill from">{userName(users, debt.from)}</span>
         <p>
@@ -183,7 +223,100 @@ function DebtCard({ debt, users }: { debt: Debt; users: User[] }) {
         <strong>{debt.count}</strong>
         <span>{tripDebtUnit(debt.count)}</span>
       </div>
-    </article>
+      <span className="debt-kind">{ledger === "driver" ? "водіння" : "feeder"}</span>
+    </button>
+  );
+}
+
+function DebtExplanationSheet({
+  explanation,
+  onClose,
+  users,
+}: {
+  explanation: DebtExplanation;
+  onClose: () => void;
+  users: User[];
+}) {
+  const { debt, ledger, offsetTrips, owedTrips } = explanation;
+  const ledgerTitle = ledger === "driver" ? "водійський баланс" : "feeder-відрізок";
+
+  return (
+    <div className="sheet-backdrop" role="presentation" onClick={onClose}>
+      <section
+        aria-label="Пояснення боргу"
+        className="debt-sheet"
+        onClick={(event) => event.stopPropagation()}
+      >
+        <div className="sheet-handle" />
+        <div className="sheet-heading">
+          <div>
+            <p>{ledgerTitle}</p>
+            <h2>
+              {userName(users, debt.from)} винен {userName(users, debt.to)} {debt.count}{" "}
+              {tripDebtUnit(debt.count)}
+            </h2>
+          </div>
+          <button aria-label="Закрити пояснення" onClick={onClose}>
+            ×
+          </button>
+        </div>
+
+        <div className="explain-total">
+          <span>{owedTrips.length}</span>
+          <small>створили борг</small>
+          <span>{offsetTrips.length}</span>
+          <small>погасили зустрічно</small>
+        </div>
+
+        <ExplanationList
+          emptyText="Немає поїздок, що створили цей борг."
+          entries={owedTrips}
+          title="Що створило борг"
+          users={users}
+        />
+
+        {offsetTrips.length > 0 && (
+          <ExplanationList
+            emptyText=""
+            entries={offsetTrips}
+            isOffset
+            title="Що пішло у взаємозалік"
+            users={users}
+          />
+        )}
+      </section>
+    </div>
+  );
+}
+
+function ExplanationList({
+  emptyText,
+  entries,
+  isOffset = false,
+  title,
+  users,
+}: {
+  emptyText: string;
+  entries: DebtExplanation["owedTrips"];
+  isOffset?: boolean;
+  title: string;
+  users: User[];
+}) {
+  return (
+    <div className="explain-list">
+      <h3>{title}</h3>
+      {entries.length === 0 && emptyText && <p className="explain-empty">{emptyText}</p>}
+      {entries.map((entry) => (
+        <article className={isOffset ? "offset" : ""} key={`${entry.tripId}-${entry.from}-${entry.to}`}>
+          <time>{formatTripDate(entry.createdAt)}</time>
+          <span>
+            {entry.ledger === "driver"
+              ? `${userName(users, entry.to)} віз ${userName(users, entry.from)}`
+              : `${userName(users, entry.to)} підвіз ${userName(users, entry.from)}`}
+          </span>
+        </article>
+      ))}
+    </div>
   );
 }
 

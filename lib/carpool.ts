@@ -25,6 +25,23 @@ export type Debt = {
   count: number;
 };
 
+export type DebtLedger = "driver" | "feeder";
+
+export type DebtEntry = {
+  ledger: DebtLedger;
+  tripId: string;
+  createdAt: string;
+  from: string;
+  to: string;
+};
+
+export type DebtExplanation = {
+  debt: Debt;
+  ledger: DebtLedger;
+  owedTrips: DebtEntry[];
+  offsetTrips: DebtEntry[];
+};
+
 export type BalanceSummary = {
   driverDebts: Debt[];
   feederDebts: Debt[];
@@ -86,46 +103,98 @@ export const hydrateTrips = (
 };
 
 export const calculateDriverBalance = (trips: HydratedTrip[]): Debt[] => {
-  const ledger = new Map<string, Debt>();
+  return settleMutualDebts(entriesToDebts(getDriverDebtEntries(trips))).sort((a, b) => {
+    if (b.count !== a.count) return b.count - a.count;
+    return `${a.from}-${a.to}`.localeCompare(`${b.from}-${b.to}`, "uk");
+  });
+};
 
-  trips.forEach((trip) => {
+export const getDriverDebtEntries = (trips: HydratedTrip[]): DebtEntry[] => {
+  return trips.flatMap((trip) => {
+    const entries: DebtEntry[] = [];
+
     if (trip.feeder_id) {
-      addDebt(ledger, trip.feeder_id, trip.driver_id);
+      entries.push({
+        ledger: "driver",
+        tripId: trip.id,
+        createdAt: trip.created_at,
+        from: trip.feeder_id,
+        to: trip.driver_id,
+      });
     }
 
     trip.participants.forEach((participantId) => {
-      addDebt(ledger, participantId, trip.driver_id);
-
+      entries.push({
+        ledger: "driver",
+        tripId: trip.id,
+        createdAt: trip.created_at,
+        from: participantId,
+        to: trip.driver_id,
+      });
     });
-  });
 
-  return settleMutualDebts(Array.from(ledger.values())).sort((a, b) => {
-    if (b.count !== a.count) return b.count - a.count;
-    return `${a.from}-${a.to}`.localeCompare(`${b.from}-${b.to}`, "uk");
+    return entries;
   });
 };
 
 export const calculateFeederBalance = (trips: HydratedTrip[], users: User[] = []): Debt[] => {
-  const ledger = new Map<string, Debt>();
-
-  trips.forEach((trip) => {
-    if (!trip.feeder_id) return;
-
-    const feederPassengers = users
-      .map((user) => user.id)
-      .filter((userId) => userId !== trip.driver_id && userId !== trip.feeder_id);
-
-    feederPassengers.forEach((participantId) => {
-      addDebt(ledger, participantId, trip.feeder_id as string);
-    });
-  });
-
-  return settleMutualDebts(Array.from(ledger.values())).sort((a, b) => {
+  return settleMutualDebts(entriesToDebts(getFeederDebtEntries(trips, users))).sort((a, b) => {
     if (b.count !== a.count) return b.count - a.count;
     return `${a.from}-${a.to}`.localeCompare(`${b.from}-${b.to}`, "uk");
   });
 };
 
+export const getFeederDebtEntries = (trips: HydratedTrip[], users: User[] = []): DebtEntry[] => {
+  return trips.flatMap((trip) => {
+    if (!trip.feeder_id) return [];
+
+    return users
+      .map((user) => user.id)
+      .filter((userId) => userId !== trip.driver_id && userId !== trip.feeder_id)
+      .map((userId) => ({
+        ledger: "feeder" as const,
+        tripId: trip.id,
+        createdAt: trip.created_at,
+        from: userId,
+        to: trip.feeder_id as string,
+      }));
+  });
+};
+
+const entriesToDebts = (entries: DebtEntry[]): Debt[] => {
+  const ledger = new Map<string, Debt>();
+
+  entries.forEach((entry) => {
+    addDebt(ledger, entry.from, entry.to);
+  });
+
+  return Array.from(ledger.values());
+};
+
+export const explainDebt = (
+  ledger: DebtLedger,
+  debt: Debt,
+  trips: HydratedTrip[],
+  users: User[] = []
+): DebtExplanation => {
+  const entries =
+    ledger === "driver" ? getDriverDebtEntries(trips) : getFeederDebtEntries(trips, users);
+
+  const owedTrips = entries
+    .filter((entry) => entry.from === debt.from && entry.to === debt.to)
+    .sort((a, b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime());
+
+  const offsetTrips = entries
+    .filter((entry) => entry.from === debt.to && entry.to === debt.from)
+    .sort((a, b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime());
+
+  return {
+    debt,
+    ledger,
+    owedTrips,
+    offsetTrips,
+  };
+};
 export const calculateBalance = (trips: HydratedTrip[], users: User[] = []): BalanceSummary => {
   return {
     driverDebts: calculateDriverBalance(trips),
