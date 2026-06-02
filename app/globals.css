@@ -367,16 +367,6 @@ button.debt-card {
   font-weight: 850;
 }
 
-.debt-kind {
-  position: absolute;
-  right: 14px;
-  bottom: 10px;
-  color: var(--muted);
-  font-size: 0.68rem;
-  font-weight: 900;
-  text-transform: uppercase;
-}
-
 .sheet-backdrop {
   position: fixed;
   inset: 0;

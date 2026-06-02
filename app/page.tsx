@@ -142,7 +142,6 @@ export default function BalancePage() {
                 <DebtCard
                   key={`driver-${debt.from}-${debt.to}`}
                   debt={debt}
-                  ledger="driver"
                   onSelect={() => setSelectedDebt({ ledger: "driver", debt })}
                   users={users}
                 />
@@ -167,7 +166,6 @@ export default function BalancePage() {
               <DebtCard
                 key={`feeder-${debt.from}-${debt.to}`}
                 debt={debt}
-                ledger="feeder"
                 onSelect={() => setSelectedDebt({ ledger: "feeder", debt })}
                 users={users}
               />
@@ -202,12 +200,10 @@ export default function BalancePage() {
 
 function DebtCard({
   debt,
-  ledger,
   onSelect,
   users,
 }: {
   debt: Debt;
-  ledger: DebtLedger;
   onSelect: () => void;
   users: User[];
 }) {
@@ -223,7 +219,6 @@ function DebtCard({
         <strong>{debt.count}</strong>
         <span>{tripDebtUnit(debt.count)}</span>
       </div>
-      <span className="debt-kind">{ledger === "driver" ? "водіння" : "feeder"}</span>
     </button>
   );
 }
@@ -269,21 +264,11 @@ function DebtExplanationSheet({
         </div>
 
         <ExplanationList
-          emptyText="Немає поїздок, що створили цей борг."
-          entries={owedTrips}
-          title="Що створило борг"
+          emptyText="Після взаємозаліку не лишилось відкритих дат."
+          entries={explanation.outstandingTrips}
+          title="Що ще боргує"
           users={users}
         />
-
-        {offsetTrips.length > 0 && (
-          <ExplanationList
-            emptyText=""
-            entries={offsetTrips}
-            isOffset
-            title="Що пішло у взаємозалік"
-            users={users}
-          />
-        )}
       </section>
     </div>
   );
@@ -292,13 +277,11 @@ function DebtExplanationSheet({
 function ExplanationList({
   emptyText,
   entries,
-  isOffset = false,
   title,
   users,
 }: {
   emptyText: string;
   entries: DebtExplanation["owedTrips"];
-  isOffset?: boolean;
   title: string;
   users: User[];
 }) {
@@ -307,7 +290,7 @@ function ExplanationList({
       <h3>{title}</h3>
       {entries.length === 0 && emptyText && <p className="explain-empty">{emptyText}</p>}
       {entries.map((entry) => (
-        <article className={isOffset ? "offset" : ""} key={`${entry.tripId}-${entry.from}-${entry.to}`}>
+        <article key={`${entry.tripId}-${entry.from}-${entry.to}`}>
           <time>{formatTripDate(entry.createdAt)}</time>
           <span>
             {entry.ledger === "driver"

@@ -40,6 +40,7 @@ export type DebtExplanation = {
   ledger: DebtLedger;
   owedTrips: DebtEntry[];
   offsetTrips: DebtEntry[];
+  outstandingTrips: DebtEntry[];
 };
 
 export type BalanceSummary = {
@@ -187,10 +188,12 @@ export const explainDebt = (
   const offsetTrips = entries
     .filter((entry) => entry.from === debt.to && entry.to === debt.from)
     .sort((a, b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime());
+  const outstandingTrips = owedTrips.slice(offsetTrips.length);
 
   return {
     debt,
     ledger,
+    outstandingTrips,
     owedTrips,
     offsetTrips,
   };
